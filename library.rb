@@ -97,10 +97,10 @@ class Member
   # This may fail if the member does not have the book
 
    def give_back(book)
-     if @books[b] == "Empty"
+     if @books[book] == "Empty"
        raise "#{@name} trying to return a book they don't have!"
      end
-     @books.delete(b)
+     @books.delete(book)
    end
 
   # Returns the set of Book objects checked out to this member (may be the empty set)
@@ -219,6 +219,9 @@ class Library
       if @nowServing == nil
         raise "No member is currently being served."
       end
+      if @books.length == 0
+        raise "No books left in the library"
+      end
       @book_count = 0
       @missing = []
       book_ids.each { |b| if @books[b] != "Empty"
@@ -254,28 +257,47 @@ class Library
         raise "No member is currently being served."
        end
        @membersBooks = @nowServing.get_books
+       if @membersBooks.length == 0
+         raise "#{@nowServing.get_name} has no books checked out."
+       end
+
+       puts @membersBooks
        @book_count = 0
        @unowned = []
+       @duplicated = []
 
        book_numbers.each { |b| if @membersBooks[b] != "Empty" && @books[b] == "Empty"
-                                 @nowServing.give_back(b)
+                                 @nowServing.give_back(b.get_id)
+                                 @books[b].check_in
                                  @book_count += 1
                                else
-                                 @failed << b
+                                 if @membersBooks[b] != "Empty"
+                                   @unowned << b
+                                 else
+                                   @duplicated << b
+                                 end
                                end
                          }
+        @retStr = "#{@nowServing.get_name} returned #{@book_count} book(s)."
+        if @unowned.length > 0
+          @retStr += "\n#{@nowServing.get_name} does not have book id(s): "
+          for i in 0..@unowned.length - 1
+            if i > 0 then @retStr += "," end
+            @retStr += "#{@unowned[i]}"
+          end
+        end
+        if @duplicated.length > 0
+          @retStr += "\nDuplicated books: "
+          for i in 0..@duplicated.length - 1
+            if i > 0 then @retStr += "," end
+              @retStr += "#{@duplicated[i]}"
+            end
+          end
 
+
+      return @retStr
 
     end
-    The book is being returned by the current member (there must be one!), so return it to the collection and remove it
-     from the set of books currently checked out to the member. The book_numbers are
-    taken from the list printed by the search command. Checking in a Book will involve both
-     telling the Book that it is checked in and returning the Book to this library's collection of available Books.
-    If successful, returns "name_of_member has returned n books.”.
-    May throw an Exception with an appropriate message:
-    • "The library is not open."
-    • "No member is currently being served."
-    • "The member does not have book id.”
 
 
 
@@ -311,7 +333,7 @@ puts lib.serve("Dr. Evil")
 puts lib.serve("Bruce Banner")
 puts lib.check_out(1,2)
 puts lib.check_out(2,3,1)
-puts lib.give_back
+puts lib.check_in(4)
 rescue Exception => msg
   puts "Oops! #{msg}"
 end
