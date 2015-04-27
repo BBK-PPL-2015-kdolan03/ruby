@@ -1,3 +1,7 @@
+# ===================================================
+# Class Calendar
+# ===================================================
+
 class Calendar
 
   def initialize()
@@ -13,6 +17,10 @@ class Calendar
   end
 
 end
+
+# ===================================================
+# Class Book
+# ===================================================
 
 class Book
 
@@ -70,6 +78,10 @@ class Book
 
 end
 
+# ===================================================
+# Class Member
+# ===================================================
+
 class Member
 
   # Constructs a member with the given name, and no books.
@@ -90,7 +102,7 @@ class Member
   # Adds this Book object to the set of books checked out by this member
 
   def check_out(book)
-
+    @books[book.get_id] = book
   end
 
   #  Removes this Book object from the set of books checked out by this member
@@ -98,7 +110,7 @@ class Member
 
    def give_back(book)
      if @books[book] == "Empty"
-       raise "#{@name} trying to return a book they don't have!"
+       raise "#{@name} is trying to return a book they don't have!"
      end
      @books.delete(book)
    end
@@ -112,10 +124,14 @@ class Member
   # Tells this member that he/she has overdue books
 
   def send_overdue_notice(notice)
+    puts "#{@name}: #{notice}"
   end
 
 end
 
+# ===================================================
+# Class Library
+# ===================================================
 
 class Library
 
@@ -133,13 +149,15 @@ class Library
       end
     end
 
-    # helper method to reduce typing
+    # Helper method to reduce typing
 
     def checkOpen
       if @open == false
         raise "Library closed"
       end
     end
+
+    # Helper method to read in inventory
 
     def read_inventory()
       begin
@@ -183,11 +201,15 @@ class Library
 
     def find_all_overdue_books()
       checkOpen
+      @found = false
       @outStr = ""
-      @members.each { |m| m.get_books.each {
-          |b| if b.get_due_date > @calendar.get_date then @outStr += "#{m.get_name}: #{b.to_s}" end }
-        }
-       if @outStr.length == 0
+      @members.each_value { |m| @obs = list_members_overdue_books(m)
+                      if @obs.length > 0
+                        @outStr += "#{m.get_name}: has these books overdue:\n#{@obs} "
+                        @found = true
+                      end
+                    }
+       if @found == false
          return "No books are overdue."
        else
          return @outStr
@@ -255,57 +277,66 @@ class Library
       checkOpen
       if @nowServing == nil
         raise "No member is currently being served."
-       end
-       @membersBooks = @nowServing.get_books
-       if @membersBooks.length == 0
-         raise "#{@nowServing.get_name} has no books checked out."
-       end
+      end
+      @membersBooks = @nowServing.get_books
+      if @membersBooks.length == 0
+        raise "#{@nowServing.get_name} has no books checked out."
+      end
 
-       puts @membersBooks
-       @book_count = 0
-       @unowned = []
-       @duplicated = []
+      @book_count = 0
+      @unowned = []
+      @duplicated = []
 
-       book_numbers.each { |b| if @membersBooks[b] != "Empty" && @books[b] == "Empty"
+      book_numbers.each { |b| if @membersBooks[b] != "Empty" && @books[b] == "Empty"
                                  @nowServing.give_back(b.get_id)
                                  @books[b].check_in
                                  @book_count += 1
                                else
-                                 if @membersBooks[b] != "Empty"
+                                 # As with check_out we may have already checked in some books.
+                                 # Accumulate the errors and report them
+                                 # Again, the specification said "MAY throw an exception"
+                                 if @membersBooks[b] == "Empty"
                                    @unowned << b
                                  else
                                    @duplicated << b
                                  end
                                end
                          }
-        @retStr = "#{@nowServing.get_name} returned #{@book_count} book(s)."
-        if @unowned.length > 0
-          @retStr += "\n#{@nowServing.get_name} does not have book id(s): "
-          for i in 0..@unowned.length - 1
-            if i > 0 then @retStr += "," end
-            @retStr += "#{@unowned[i]}"
-          end
+      @retStr = "#{@nowServing.get_name} returned #{@book_count} book(s)."
+      if @unowned.length > 0
+        @retStr += "\n#{@nowServing.get_name} does not have book id(s): "
+        for i in 0..@unowned.length - 1
+          if i > 0 then @retStr += "," end
+          @retStr += "#{@unowned[i]}"
         end
-        if @duplicated.length > 0
-          @retStr += "\nDuplicated books: "
-          for i in 0..@duplicated.length - 1
-            if i > 0 then @retStr += "," end
-              @retStr += "#{@duplicated[i]}"
-            end
-          end
-
+      end
+      if @duplicated.length > 0
+         @retStr += "\nDuplicated books: "
+         for i in 0..@duplicated.length - 1
+           if i > 0 then @retStr += "," end
+             @retStr += "#{@duplicated[i]}"
+           end
+         end
 
       return @retStr
-
     end
-
-
-
-
 
     def find_overdue_books()
       checkOpen
+      if @nowServing == nil
+        raise "No member is currently being served."
+      end
+      @ob = list_members_overdue_books(@nowServing)
+      if @ob.length == 0
+        @ob = "None"
+      end
+      @ob
+    end
 
+    def list_members_overdue_books(member)
+      @outStr = ""
+      member.get_books.each_value { |b| if b.get_due_date < @calendar.get_date then @outStr += b.to_s end }
+      @outStr
     end
 
     def search(string)
@@ -323,6 +354,9 @@ class Library
 
 end
 
+# ===================================================
+# Test
+# ===================================================
 
 lib = Library.new
 puts lib.open
@@ -334,6 +368,8 @@ puts lib.serve("Bruce Banner")
 puts lib.check_out(1,2)
 puts lib.check_out(2,3,1)
 puts lib.check_in(4)
+puts lib.find_overdue_books()
+puts lib.find_all_overdue_books()
 rescue Exception => msg
   puts "Oops! #{msg}"
 end
