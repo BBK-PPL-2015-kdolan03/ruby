@@ -168,13 +168,13 @@ class Library
 
   def read_inventory()
     begin
-      arr = IO.readlines("/Users/keithdolan/Documents/collection.txt")
-      arr.each { |x| words = x.split(/\,/)
+      _arr = IO.readlines("/Users/keithdolan/Documents/collection.txt")
+      _arr.each { |x| words = x.split(/\,/)
           if words.length != 2
             raise "Inventory is corrupted"
           end
-          b = Book.new(@books.length + 1, words[0], words[1])
-          @books[@books.length + 1] = b
+          _b = Book.new(@books.length + 1, words[0], words[1])
+          @books[@books.length + 1] = _b
       }
     rescue Exception => msg
      puts "Unable to get inventory: #{msg}."
@@ -210,18 +210,18 @@ class Library
 
   def find_all_overdue_books()
     checkOpen
-    @found = false
-    @outStr = ""
-    @members.each_value { |m| @obs = list_members_overdue_books(m)
-                          if @obs.length > 0
-                            @outStr += "#{m.get_name}: has these books overdue:\n#{@obs} "
-                            @found = true
+    _found = false
+    _outStr = ""
+    @members.each_value { |m| _obs = list_members_overdue_books(m)
+                          if _obs.length > 0
+                            _outStr += "#{m.get_name} has these books overdue:\n#{_obs} "
+                            _found = true
                           end
                         }
     if @found == false
       return "No books are overdue."
     else
-      return @outStr
+      return _outStr
     end
   end
 
@@ -253,31 +253,31 @@ class Library
     if @books.length == 0
       raise "No books left in the library"
     end
-    @book_count = 0
-    @missing = []
+    _book_count = 0
+    _missing = []
     book_ids.each { |b| if @books[b] != "Empty"
                           @books[b].check_out(@calendar.get_date + 7)
                           @nowServing.check_out(@books[b])
                           @books.delete(b)
-                          @book_count += 1
+                          _book_count += 1
                         else
                           # May have already checked out some books and
                           # having one missing should not stop the others
                           # being check out. It's not all or nothing!
                           # The specification said "MAY throw an exception"
-                          @missing << b
+                          _missing << b
                         end
                     }
-    @retStr = "Checked out #{@book_count} book(s) to #{@nowServing.get_name}."
-    if @missing.length > 0
-      @retStr += " Unavailable books: "
-      for i in 0..@missing.length - 1
-        if i > 0 then @retStr += "," end
-        @retStr += "#{@missing[i]}"
+    _retStr = "Checked out #{_book_count} book(s) to #{@nowServing.get_name}."
+    if _missing.length > 0
+      _retStr += " Unavailable books: "
+      for i in 0.._missing.length - 1
+        if i > 0 then _retStr += "," end
+        _retStr += "#{_missing[i]}"
       end
     end
 
-    return @retStr
+    return _retStr
   end
 
 
@@ -286,47 +286,47 @@ class Library
     if @nowServing == nil
       raise "No member is currently being served."
     end
-    @membersBooks = @nowServing.get_books
-    if @membersBooks.length == 0
+    _membersBooks = @nowServing.get_books
+    if _membersBooks.length == 0
       raise "#{@nowServing.get_name} has no books checked out."
     end
 
-    @book_count = 0
-    @unowned = []
-    @duplicated = []
+    _book_count = 0
+    _unowned = []
+    _duplicated = []
 
-    book_numbers.each { |b| if @membersBooks[b] != "Empty" && @books[b] == "Empty"
+    book_numbers.each { |b| if _membersBooks[b] != "Empty" && @books[b] == "Empty"
                               @nowServing.give_back(b.get_id)
                               @books[b].check_in
-                              @book_count += 1
+                              _book_count += 1
                             else
                               # As with check_out we may have already checked in some books.
                               # Accumulate the errors and report them
                               # Again, the specification said "MAY throw an exception"
-                              if @membersBooks[b] == "Empty"
-                                @unowned << b
+                              if _membersBooks[b] == "Empty"
+                                _unowned << b
                               else
-                                @duplicated << b
+                                _duplicated << b
                               end
                             end
                       }
-    @retStr = "#{@nowServing.get_name} returned #{@book_count} book(s)."
-    if @unowned.length > 0
-      @retStr += "\n#{@nowServing.get_name} does not have book id(s): "
-      for i in 0..@unowned.length - 1
-        if i > 0 then @retStr += "," end
-        @retStr += "#{@unowned[i]}"
+    _retStr = "#{@nowServing.get_name} returned #{_book_count} book(s)."
+    if _unowned.length > 0
+      _retStr += "\n#{@nowServing.get_name} does not have book id(s): "
+      for i in 0.._unowned.length - 1
+        if i > 0 then _retStr += "," end
+        _retStr += "#{_unowned[i]}"
       end
     end
-    if @duplicated.length > 0
-      @retStr += "\nDuplicated books: "
-        for i in 0..@duplicated.length - 1
-          if i > 0 then @retStr += "," end
-          @retStr += "#{@duplicated[i]}"
+    if _duplicated.length > 0
+      _retStr += "\nDuplicated books: "
+        for i in 0.._duplicated.length - 1
+          if i > 0 then _retStr += "," end
+          _retStr += "#{_duplicated[i]}"
       end
     end
 
-    return @retStr
+    return _retStr
   end
 
   def find_overdue_books()
@@ -334,17 +334,17 @@ class Library
     if @nowServing == nil
       raise "No member is currently being served."
     end
-    @ob = list_members_overdue_books(@nowServing)
-    if @ob.length == 0
-      @ob = "None"
+    _ob = list_members_overdue_books(@nowServing)
+    if _ob.length == 0
+      _ob = "None"
     end
-    @ob
+    _ob
   end
 
   def list_members_overdue_books(member)
-    @outStr = ""
-    member.get_books.each_value { |b| if b.get_due_date < @calendar.get_date then @outStr += b.to_s end }
-    @outStr
+    _outStr = ""
+    member.get_books.each_value { |b| if b.get_due_date < @calendar.get_date then _outStr += b.to_s end }
+    _outStr
   end
 
   def search(string)
@@ -352,13 +352,13 @@ class Library
     if string.length < 4
       return "Search string must contain at least four characters."
     end
-    @outStr = ""
-    @searchStr = string.downcase
-    @books.each_value { |b| if (b.to_s.downcase).include? @searchStr then @outStr += b.to_s end }
-    if @outStr.length == 0
+    _outStr = ""
+    _searchStr = string.downcase
+    @books.each_value { |b| if (b.to_s.downcase).include? _searchStr then _outStr += b.to_s end }
+    if _outStr.length == 0
       return "No books found."
     end
-    return @outStr
+    return _outStr
   end
 
 end
@@ -378,6 +378,18 @@ begin
   puts lib.check_out(1,2)
   puts lib.check_out(2,3,1)
   puts lib.check_in(4)
+  for i in 0..6
+    puts lib.close
+    puts lib.open
+  end
+  puts lib.serve("Bruce Banner")
+  puts lib.find_overdue_books()
+  puts lib.find_all_overdue_books()
+  for i in 0..3
+    puts lib.close
+    puts lib.open
+  end
+  puts lib.serve("Bruce Banner")
   puts lib.find_overdue_books()
   puts lib.find_all_overdue_books()
 rescue Exception => msg
