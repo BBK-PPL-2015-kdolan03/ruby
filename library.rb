@@ -1,8 +1,12 @@
+require 'singleton'
+
 # ===================================================
 # Class Calendar
 # ===================================================
 
 class Calendar
+
+  include Singleton
 
   def initialize()
     @date = 0
@@ -135,222 +139,227 @@ end
 
 class Library
 
-    def initialize()
-      @open = false
-      @members = Hash.new("Unknown")
-      @books = Hash.new("Empty")
-      @nowServing = nil
+  include Singleton
 
-      begin
-        read_inventory
-        @calendar = Calendar.new
-      rescue Exception => msg
-        puts msg
-      end
+  def initialize()
+    @open = false
+    @shut = false
+    @members = Hash.new("Unknown")
+    @books = Hash.new("Empty")
+    @nowServing = nil
+
+    begin
+      read_inventory
+      @calendar = Calendar.instance
+    rescue Exception => msg
+      puts msg
     end
+  end
 
-    # Helper method to reduce typing
+  # Helper method to reduce typing
 
-    def checkOpen
-      if @open == false
-        raise "Library closed"
-      end
+  def checkOpen
+    if @open == false  || @shut == true
+      raise "Library closed"
     end
+  end
 
-    # Helper method to read in inventory
+  # Helper method to read in inventory
 
-    def read_inventory()
-      begin
-        arr = IO.readlines("/Users/keithdolan/Documents/collection.txt")
-        arr.each { |x| words = x.split(/\,/)
-            if words.length != 2
-              raise "Inventory is corrupted"
-            end
-            b = Book.new(@books.length + 1, words[0], words[1])
-            @books[@books.length + 1] = b
-        }
-      rescue Exception => msg
-       puts "Unable to get inventory: #{msg}."
-      end
-    end
-
-    def open
-      if @open == true
-        raise "The library is already open!"
-      else
-         if @books.length == 0
-           return "No inventory due to government cutbacks. Library closed"
-         end
-         @open = true
-         @nowServing = nil
-         @calendar.advance()
-         return "Today is day #{@calendar.get_date}."
-      end
-    end
-
-    def close
-      if @open == false
-        raise "The library is not open."
-      end
-      @open = false
-      return "Good night."
-    end
-
-    def quit
-    end
-
-    def find_all_overdue_books()
-      checkOpen
-      @found = false
-      @outStr = ""
-      @members.each_value { |m| @obs = list_members_overdue_books(m)
-                      if @obs.length > 0
-                        @outStr += "#{m.get_name}: has these books overdue:\n#{@obs} "
-                        @found = true
-                      end
-                    }
-       if @found == false
-         return "No books are overdue."
-       else
-         return @outStr
-       end
-    end
-
-    def issue_card(name_of_member)
-      checkOpen
-      if @members[name_of_member] == "Unknown"
-        @members[name_of_member] = Member.new(name_of_member, self)
-        return "Library card issued to #{name_of_member}."
-      else
-       return "#{name_of_member} already has a library card."
-      end
-    end
-
-    def serve(name_of_member)
-      checkOpen
-      if @members[name_of_member] == "Unknown"
-        return "#{name_of_member} does not have a library card."
-      else
-        @nowServing = @members[name_of_member]
-        return "Now serving #{name_of_member}."
-      end
-    end
-
-    def check_out(*book_ids)
-      checkOpen
-      if @nowServing == nil
-        raise "No member is currently being served."
-      end
-      if @books.length == 0
-        raise "No books left in the library"
-      end
-      @book_count = 0
-      @missing = []
-      book_ids.each { |b| if @books[b] != "Empty"
-                            @books[b].check_out(@calendar.get_date + 7)
-                            @nowServing.check_out(@books[b])
-                            @books.delete(b)
-                            @book_count += 1
-                          else
-                            # May have already checked out some books and
-                            # having one missing should not stop the others
-                            # being check out. It's not all or nothing!
-                            # The specification said "MAY throw an exception"
-                            @missing << b
-                            # raise "The library does not have book id #{b}."
-                          end
-                    }
-        @retStr = "Checked out #{@book_count} book(s) to #{@nowServing.get_name}."
-        if @missing.length > 0
-          @retStr += " Unavailable books: "
-          for i in 0..@missing.length - 1
-            if i > 0 then @retStr += "," end
-            @retStr += "#{@missing[i]}"
+  def read_inventory()
+    begin
+      arr = IO.readlines("/Users/keithdolan/Documents/collection.txt")
+      arr.each { |x| words = x.split(/\,/)
+          if words.length != 2
+            raise "Inventory is corrupted"
           end
-        end
-
-      return @retStr
+          b = Book.new(@books.length + 1, words[0], words[1])
+          @books[@books.length + 1] = b
+      }
+    rescue Exception => msg
+     puts "Unable to get inventory: #{msg}."
     end
+  end
 
-
-    def check_in(*book_numbers)
-      checkOpen
-      if @nowServing == nil
-        raise "No member is currently being served."
-      end
-      @membersBooks = @nowServing.get_books
-      if @membersBooks.length == 0
-        raise "#{@nowServing.get_name} has no books checked out."
-      end
-
-      @book_count = 0
-      @unowned = []
-      @duplicated = []
-
-      book_numbers.each { |b| if @membersBooks[b] != "Empty" && @books[b] == "Empty"
-                                 @nowServing.give_back(b.get_id)
-                                 @books[b].check_in
-                                 @book_count += 1
-                               else
-                                 # As with check_out we may have already checked in some books.
-                                 # Accumulate the errors and report them
-                                 # Again, the specification said "MAY throw an exception"
-                                 if @membersBooks[b] == "Empty"
-                                   @unowned << b
-                                 else
-                                   @duplicated << b
-                                 end
-                               end
-                         }
-      @retStr = "#{@nowServing.get_name} returned #{@book_count} book(s)."
-      if @unowned.length > 0
-        @retStr += "\n#{@nowServing.get_name} does not have book id(s): "
-        for i in 0..@unowned.length - 1
-          if i > 0 then @retStr += "," end
-          @retStr += "#{@unowned[i]}"
-        end
-      end
-      if @duplicated.length > 0
-         @retStr += "\nDuplicated books: "
-         for i in 0..@duplicated.length - 1
-           if i > 0 then @retStr += "," end
-             @retStr += "#{@duplicated[i]}"
-           end
-         end
-
-      return @retStr
+  def open
+    if @open == true
+      raise "The library is already open!"
+    else
+       if @books.length == 0
+         return "No inventory due to government cutbacks. Library closed"
+       end
+       @open = true
+       @nowServing = nil
+       @calendar.advance()
+       return "Today is day #{@calendar.get_date}."
     end
+  end
 
-    def find_overdue_books()
-      checkOpen
-      if @nowServing == nil
-        raise "No member is currently being served."
-      end
-      @ob = list_members_overdue_books(@nowServing)
-      if @ob.length == 0
-        @ob = "None"
-      end
-      @ob
+  def close
+    if @open == false
+      raise "The library is not open."
     end
+    @open = false
+    return "Good night."
+  end
 
-    def list_members_overdue_books(member)
-      @outStr = ""
-      member.get_books.each_value { |b| if b.get_due_date < @calendar.get_date then @outStr += b.to_s end }
-      @outStr
-    end
+  def quit
+    @shut = true
+    return "The library is now closed for renovations."
+  end
 
-    def search(string)
-      if string.length < 4
-        return "Search string must contain at least four characters."
-      end
-      @outStr = ""
-      @searchStr = string.downcase
-      @books.each_value { |b| if (b.to_s.downcase).include? @searchStr then @outStr += b.to_s end }
-      if @outStr.length == 0
-        return "No books found."
-      end
+  def find_all_overdue_books()
+    checkOpen
+    @found = false
+    @outStr = ""
+    @members.each_value { |m| @obs = list_members_overdue_books(m)
+                          if @obs.length > 0
+                            @outStr += "#{m.get_name}: has these books overdue:\n#{@obs} "
+                            @found = true
+                          end
+                        }
+    if @found == false
+      return "No books are overdue."
+    else
       return @outStr
     end
+  end
+
+  def issue_card(name_of_member)
+    checkOpen
+    if @members[name_of_member] == "Unknown"
+      @members[name_of_member] = Member.new(name_of_member, self)
+      return "Library card issued to #{name_of_member}."
+    else
+     return "#{name_of_member} already has a library card."
+    end
+  end
+
+  def serve(name_of_member)
+    checkOpen
+    if @members[name_of_member] == "Unknown"
+      return "#{name_of_member} does not have a library card."
+    else
+      @nowServing = @members[name_of_member]
+      return "Now serving #{name_of_member}."
+    end
+  end
+
+  def check_out(*book_ids)
+    checkOpen
+    if @nowServing == nil
+      raise "No member is currently being served."
+    end
+    if @books.length == 0
+      raise "No books left in the library"
+    end
+    @book_count = 0
+    @missing = []
+    book_ids.each { |b| if @books[b] != "Empty"
+                          @books[b].check_out(@calendar.get_date + 7)
+                          @nowServing.check_out(@books[b])
+                          @books.delete(b)
+                          @book_count += 1
+                        else
+                          # May have already checked out some books and
+                          # having one missing should not stop the others
+                          # being check out. It's not all or nothing!
+                          # The specification said "MAY throw an exception"
+                          @missing << b
+                        end
+                    }
+    @retStr = "Checked out #{@book_count} book(s) to #{@nowServing.get_name}."
+    if @missing.length > 0
+      @retStr += " Unavailable books: "
+      for i in 0..@missing.length - 1
+        if i > 0 then @retStr += "," end
+        @retStr += "#{@missing[i]}"
+      end
+    end
+
+    return @retStr
+  end
+
+
+  def check_in(*book_numbers)
+    checkOpen
+    if @nowServing == nil
+      raise "No member is currently being served."
+    end
+    @membersBooks = @nowServing.get_books
+    if @membersBooks.length == 0
+      raise "#{@nowServing.get_name} has no books checked out."
+    end
+
+    @book_count = 0
+    @unowned = []
+    @duplicated = []
+
+    book_numbers.each { |b| if @membersBooks[b] != "Empty" && @books[b] == "Empty"
+                              @nowServing.give_back(b.get_id)
+                              @books[b].check_in
+                              @book_count += 1
+                            else
+                              # As with check_out we may have already checked in some books.
+                              # Accumulate the errors and report them
+                              # Again, the specification said "MAY throw an exception"
+                              if @membersBooks[b] == "Empty"
+                                @unowned << b
+                              else
+                                @duplicated << b
+                              end
+                            end
+                      }
+    @retStr = "#{@nowServing.get_name} returned #{@book_count} book(s)."
+    if @unowned.length > 0
+      @retStr += "\n#{@nowServing.get_name} does not have book id(s): "
+      for i in 0..@unowned.length - 1
+        if i > 0 then @retStr += "," end
+        @retStr += "#{@unowned[i]}"
+      end
+    end
+    if @duplicated.length > 0
+      @retStr += "\nDuplicated books: "
+        for i in 0..@duplicated.length - 1
+          if i > 0 then @retStr += "," end
+          @retStr += "#{@duplicated[i]}"
+      end
+    end
+
+    return @retStr
+  end
+
+  def find_overdue_books()
+    checkOpen
+    if @nowServing == nil
+      raise "No member is currently being served."
+    end
+    @ob = list_members_overdue_books(@nowServing)
+    if @ob.length == 0
+      @ob = "None"
+    end
+    @ob
+  end
+
+  def list_members_overdue_books(member)
+    @outStr = ""
+    member.get_books.each_value { |b| if b.get_due_date < @calendar.get_date then @outStr += b.to_s end }
+    @outStr
+  end
+
+  def search(string)
+    checkOpen
+    if string.length < 4
+      return "Search string must contain at least four characters."
+    end
+    @outStr = ""
+    @searchStr = string.downcase
+    @books.each_value { |b| if (b.to_s.downcase).include? @searchStr then @outStr += b.to_s end }
+    if @outStr.length == 0
+      return "No books found."
+    end
+    return @outStr
+  end
 
 end
 
@@ -358,18 +367,19 @@ end
 # Test
 # ===================================================
 
-lib = Library.new
-puts lib.open
+lib = Library.instance
+
 begin
-puts  lib.issue_card("Bruce Banner")
-puts lib.search("KiTt")
-puts lib.serve("Dr. Evil")
-puts lib.serve("Bruce Banner")
-puts lib.check_out(1,2)
-puts lib.check_out(2,3,1)
-puts lib.check_in(4)
-puts lib.find_overdue_books()
-puts lib.find_all_overdue_books()
+  puts lib.open
+  puts lib.issue_card("Bruce Banner")
+  puts lib.search("KiTt")
+  puts lib.serve("Dr. Evil")
+  puts lib.serve("Bruce Banner")
+  puts lib.check_out(1,2)
+  puts lib.check_out(2,3,1)
+  puts lib.check_in(4)
+  puts lib.find_overdue_books()
+  puts lib.find_all_overdue_books()
 rescue Exception => msg
   puts "Oops! #{msg}"
 end
